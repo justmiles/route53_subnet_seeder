@@ -10,7 +10,7 @@ validateCidr = (cidr) ->
     process.exit 1
   return cidr
     
-program.version('1.0.0')
+program.version('1.1.0')
   .option('-f, --forward_zone_id <id>', 'ID of the Route53 Hosted zone for forward lookup records')
   .option('-c, --cidr <cidr>', 'CIDR to build zones for. Example, "10.110.1.0/24"', validateCidr)
   .option('-a, --action [action]', 'Action to perform [UPSERT]', 'UPSERT')
@@ -66,33 +66,41 @@ async.waterfall [
                 Value: address.asString
               ]
 
-      cb err, forwardZone.HostedZone.Name, forwardLookupChanges
+      cb err, forwardZone, forwardLookupChanges
   
   # Submit batch request for forward zone
-  (forwardZoneName, forwardLookupChanges, cb) ->
+  (forwardZone, forwardLookupChanges, cb) ->
     route53.changeResourceRecordSets forwardLookupChanges, (err, data) ->
-      cb err, forwardZoneName, data?.ChangeInfo?.Id
+      cb err, forwardZone, data?.ChangeInfo?.Id
   
   # Find or create zone for reverse dns
-  (forwardZoneName, forwardZonePollId, cb) ->
+  (forwardZone, forwardZonePollId, cb) ->
     route53.listHostedZonesByName DNSName: reverse_zone, (err, data) ->
       log err, data
       
       for zone in data.HostedZones
         if zone.Name == reverse_zone + '.'
-          return cb null, forwardZoneName, forwardZonePollId, zone.Id.replace('/hostedzone/','')
+          return cb null, forwardZone, forwardZonePollId, zone.Id.replace('/hostedzone/','')
       
       route53.createHostedZone { 
         CallerReference: (new Date()).toString(), 
         Name: reverse_zone 
         HostedZoneConfig: 
-          Comment: "Reverse lookup records for #{program.cidr}in #{forwardZoneName}"
+          Comment: "Reverse lookup records for #{program.cidr} in #{forwardZone.HostedZone.Name}"
+          PrivateZone: forwardZone.HostedZone.Config.PrivateZone
+        VPC: forwardZone.VPCs[0]
         }, (err, data) ->
         log err, data
-        return cb err, forwardZoneName, forwardZonePollId, data.HostedZone.Id.replace('/hostedzone/','')
+        forwardZone.VPCs.shift()
+        forwardZone.VPCs.map (vpc) ->
+          route53.associateVPCWithHostedZone {
+            HostedZoneId: data.HostedZone.Id.replace('/hostedzone/','')
+            VPC: vpc
+            }, log
+        return cb err, forwardZone, forwardZonePollId, data.HostedZone.Id.replace('/hostedzone/','')
   
   # Build batch request for reverse zone
-  (forwardZoneName, forwardZonePollId, reverseZoneid, cb) ->
+  (forwardZone, forwardZonePollId, reverseZoneid, cb) ->
     route53.getHostedZone Id: reverseZoneid, (err, data) ->
       log err
       reverseLookupChanges = 
@@ -109,7 +117,7 @@ async.waterfall [
             TTL: 900
             Type: "PTR"
             ResourceRecords: [
-                Value: address.asHostname() + '.' + forwardZoneName
+                Value: address.asHostname() + '.' + forwardZone.HostedZone.Name
               ]
               
       cb err, reverseLookupChanges, forwardZonePollId, reverseZoneid
@@ -142,9 +150,9 @@ async.waterfall [
             cb null, 'reverse INSYNC', reverseZoneid
       ), 15000
       
-  ], (err, results, reverseZoneid) ->
+  ], (err, results) ->
     log err, results
     console.log JSON.stringify success: true
     
     if program.action == 'DELETE'
-      route53.deleteHostedZone Id:reverseZoneid, log
+      route53.deleteHostedZone Id: results[0][1], log

@@ -1,6 +1,6 @@
 {
   "name": "route53_subnet_seeder",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Seed a subnet to Route53",
   "scripts": {
     "build": "./node_modules/coffee-script/bin/coffee -o build -c index.coffee; ./node_modules/nexe/bin/nexe ."
