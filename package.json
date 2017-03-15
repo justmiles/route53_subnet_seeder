@@ -1,0 +1,31 @@
+{
+  "name": "route53_subnet_seeder",
+  "version": "1.0.0",
+  "description": "Seed a subnet to Route53",
+  "scripts": {
+    "build": "./node_modules/coffee-script/bin/coffee -o build -c index.coffee; ./node_modules/nexe/bin/nexe ."
+  },
+  "author": "justmiles",
+  "license": "ISC",
+  "nexe": {
+    "input": "./build/index.js",
+    "output": "route53_subnet_seeder^$",
+    "temp": "build",
+    "runtime": {
+      "framework": "node",
+      "version": "4.2.2",
+      "js-flags": "--use_strict",
+      "ignoreFlags": true
+    }
+  },
+  "dependencies": {
+    "async": "^2.1.5",
+    "aws-sdk": "^2.28.0",
+    "commander": "^2.9.0",
+    "node-cidr": "^0.1.6"
+  },
+  "devDependencies": {
+    "coffee-script": "^1.12.4",
+    "nexe": "^1.1.2"
+  }
+}
