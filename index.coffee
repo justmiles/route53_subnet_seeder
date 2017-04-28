@@ -10,7 +10,7 @@ validateCidr = (cidr) ->
     process.exit 1
   return cidr
     
-program.version('1.1.0')
+program.version('1.2.0')
   .option('-f, --forward_zone_id <id>', 'ID of the Route53 Hosted zone for forward lookup records')
   .option('-c, --cidr <cidr>', 'CIDR to build zones for. Example, "10.110.1.0/24"', validateCidr)
   .option('-a, --action [action]', 'Action to perform [UPSERT|DELETE]', 'UPSERT')
