@@ -13,7 +13,7 @@ validateCidr = (cidr) ->
 program.version('1.1.0')
   .option('-f, --forward_zone_id <id>', 'ID of the Route53 Hosted zone for forward lookup records')
   .option('-c, --cidr <cidr>', 'CIDR to build zones for. Example, "10.110.1.0/24"', validateCidr)
-  .option('-a, --action [action]', 'Action to perform [UPSERT]', 'UPSERT')
+  .option('-a, --action [action]', 'Action to perform [UPSERT|DELETE]', 'UPSERT')
   .option('-v, --verbose', 'enable verbose logging')
   .parse process.argv
 
@@ -40,7 +40,7 @@ IPv4::asHostname = ->
 
 cidr = new Subnetv4(program.cidr)
 
-reverse_zone = cidr.ipList[0].reverse.split('.').slice(1, 6).join('.')
+reverse_zone = cidr.ipList[0].reverse.split('.').slice(2, 6).join('.')
 
 async.waterfall [
   
